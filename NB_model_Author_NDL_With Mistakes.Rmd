@@ -1,0 +1,123 @@
+---
+title: "Assigment - NB DIY"
+author:
+  - name author here - Niels-Douwe Leusink
+  - name reviewer here - Stijn Peters
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+   html_notebook:
+    toc: true
+    toc_depth: 2
+---
+
+
+```{r}
+library(tm)
+library(caret)
+library(wordcloud)
+library(e1071)
+```
+
+---
+
+Choose a suitable dataset from [this](https://github.com/HAN-M3DM-Data-Mining/assignments/tree/master/datasets) folder and train  your own kNN model. Follow all the steps from the CRISP-DM model.
+
+
+## Business Understanding
+text and code here
+
+## Data Understanding
+## Data Preparation
+```{r}
+url <- "https://raw.githubusercontent.com/HAN-M3DM-Data-Mining/assignments/master/datasets/NB-fakenews.csv"
+rawdata <- read.csv(url)
+head(rawdata)
+```
+
+```{r}
+#From Character to Factor 
+rawdata$label <- label %>% factor %>% relevel("1")
+class(rawdata$label)
+```
+
+```{r}
+# unreliable <- rawdata %>% filter(label == "1")
+# reliable <- rawdata %>% filter(label == "0")
+# 
+# wordcloud(unreliable$text, max.words = 20, scale = c(4, 0.8), colors= c("indianred1","indianred2","indianred3","indianred"))
+# wordcloud(reliable$text, max.words = 20, scale = c(4, 0.8), colors= c("lightsteelblue1","lightsteelblue2","lightsteelblue3","lightsteelblue"))
+```
+
+```{r}
+#Creat a Corpus 
+rawCorpus <- Corpus(VectorSource(rawdata$text))
+head(rawCorpus)
+inspect(rawCorpus[1])
+```
+
+```{r}
+#clean the data 
+cleanCorpus <- rawCorpus %>% tm_map(tolower) %>% tm_map(removeNumbers)
+cleanCorpus <- cleanCorpus %>% tm_map(tolower) %>% tm_map(removeWords, stopwords()) %>% tm_map(removePunctuation)
+cleanCorpus <- cleanCorpus %>% tm_map(stripWhitespace)
+inspect(cleanCorpus[1])
+```
+```{r}
+#inspect the corpus again compare to the raw version
+tibble(Raw = rawCorpus$content[1], Clean = cleanCorpus$content[1])
+```
+
+```{r}
+# Transform the messages into a matrix. 
+cleanDTM <- cleanCorpus %>% DocumentTermMatrix
+```
+
+```{r}
+# Create split indices + Randomize sampling 
+set.seed(1234)
+trainIndex <- createDataPartition(rawdata$label, p = .75, 
+                                  list = FALSE, 
+                                  times = 1)
+head(trainIndex)
+```
+
+```{r}
+# Apply split indices to DF
+trainDF <- rawdata[trainIndex, ]
+testDF <- rawdata[trainIndex, ]
+
+# Apply split indices to Corpus
+trainCorpus <- cleanCorpus[trainIndex]
+testCorpus <- cleanCorpus[trainIndex]
+
+# Apply split indices to DTM
+trainDTM <- cleanDTM[trainIndex, ]
+testDTM <- cleanDTM[trainIndex, ]
+```
+
+```{r}
+freqWords <- trainDTM %>% findFreqTerms(1000)
+trainDTM <-  DocumentTermMatrix(trainCorpus, list(dictionary = freqWords))
+testDTM <-  DocumentTermMatrix(testCorpus, list(dictionary = freqWords))
+```
+
+```{r}
+convert_counts <- function(x) {
+  x <- ifelse(x > 0, 1, 0) %>% factor(levels = c(0,1), labels = c("No", "Yes"))
+}
+
+nColsDTM <- dim(trainDTM)[2]
+#Underneath is not working  
+trainDTM <- apply(trainDTM, MARGIN = 2, convert_counts)
+testDTM <- apply(testDTM, MARGIN = 2, convert_counts)
+
+head(trainDTM[,1:10])
+```
+
+```{r}
+nbayesModel <-  NB(trainDTM, trainDF$label, laplace = 1)
+
+predVec <- predict(nbayesModel, testDTM)
+confusionMatrix(predVec, testDF$label, positive = "1", dnn = c("Prediction", "True"))
+```
+

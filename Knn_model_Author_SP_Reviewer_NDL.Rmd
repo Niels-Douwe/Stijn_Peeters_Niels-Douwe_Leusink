@@ -1,0 +1,118 @@
+---
+title: "Assigment - kNN DIY"
+author:
+  - name author here - Stijn Peeters
+  - name reviewer here - Niels Douwe
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+   html_notebook:
+    toc: true
+    toc_depth: 2
+---
+
+
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(class)
+library(caret)
+```
+
+---
+
+Choose a suitable dataset from [this](https://github.com/HAN-M3DM-Data-Mining/assignments/tree/master/datasets) folder and train  your own kNN model. Follow all the steps from the CRISP-DM model.
+
+
+## Business Understanding
+text and code here
+
+## Data Understanding
+## Data Preparation
+```{r}
+rm(list=ls())
+library(tidyverse)
+#Failure 1:the " were missing
+#url <- https://raw.githubusercontent.com/HAN-M3DM-Data-Mining/assignments/master/datasets/KNN-hcvdat0.csv
+url <- "https://raw.githubusercontent.com/HAN-M3DM-Data-Mining/assignments/master/datasets/KNN-hcvdat0.csv"
+rawDF <- read_csv(url)
+
+
+
+```
+
+```{r}
+#removing the first row
+#Failure 2: not cleanDF already but you want to clean your rawDF
+#cleanDF <- cleanDF[-1]
+cleanDF <- rawDF[-1]
+head(cleanDF)
+
+#suffle the data
+randomiser <- runif(nrow(rawDF))
+#Failure 3: RawDF = CleanDF 
+#rawDF <- rawDf[order(randomiser),]
+cleanDF <- cleanDF[order(randomiser),]
+# reamoving all rows with NA values
+cleanDF <- na.omit(cleanDF)
+```
+```{r}
+cntCat <- table(cleanDF$Category)
+propCat <- round(prop.table(cntCat) * 100 , digits = 1)
+
+cntCat
+propCat
+```
+
+```{r}
+cleanDF$Category <- factor(cleanDF$Category, levels = c("0=Blood Donor", "0s=suspect Blood Donor","1=Hepatitis","2=Fibrosis","3=Cirrhosis"), labels = c("Blood Donor", "Blood Donor","Hepatitis","Hepatitis","Hepatitis")) 
+#Failure 4: Not cleaned
+cleanDF$Sex <- factor(cleanDF$Sex,levels=c("m","f"),labels=c("male","female"))
+head(cleanDF, 10)
+```
+```{r}
+normalize <- function(x) { # Function takes in a vector
+  return ((x - min(x)) / (max(x) - min(x))) # distance of item value - minimum vector value divided by the range of all vector values
+}
+```
+
+```{r}
+
+Collist <- c(2,4,5,6,7,8,9,10,11,12,13) #Taking out the category and sex rows
+cleanDF_n <- sapply(Collist,
+                    function(x) {
+  normalize(cleanDF[,x])
+}) %>% as.data.frame()
+```
+
+```{r}
+
+trainDF_feat <- cleanDF_n[1:501,  ] 
+testDF_feat <- cleanDF_n[502:589,  ]
+```
+
+
+```{r}
+trainDF_labels <- cleanDF[1:501,  1]
+testDF_labels <- cleanDF[502:589,  1]
+```
+
+```{r}
+cleanDF_test_pred <- knn(train = as.matrix(trainDF_feat), test = as.matrix(testDF_feat), cl = as.matrix(trainDF_labels), k = 24)
+head(cleanDF_test_pred)
+```
+
+```{r}
+confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction", "True"))
+```
+
+
+
+text and code here
+
+## Modeling
+text and code here
+
+## Evaluation and Deployment
+text and code here
+
+reviewer adds suggestions for improving the model
